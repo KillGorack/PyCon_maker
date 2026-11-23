@@ -154,7 +154,7 @@ class AppSmoke(unittest.TestCase):
         from gallery import ImportDialog
         from iconlib.clean import clean_svg
         a = self.app
-        bad = '<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(1,1)"><path d="M0 0L5 5" stroke="#000"/></g></svg>'
+        bad = '<svg xmlns="http://www.w3.org/2000/svg"><text x="1" y="5">Hi</text></svg>'
         dlg = ImportDialog(a, a.thumbs, clean_svg(bad), "add", "bad.svg", lambda i, t: None)
         self.pump()
         self.assertIsNone(dlg.id_entry)

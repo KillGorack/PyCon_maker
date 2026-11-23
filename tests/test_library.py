@@ -34,11 +34,6 @@ class Clean(unittest.TestCase):
         self.assertEqual([(s.stroke, s.stroke_width, s.fill) for s in icon.shapes],
                          [("#000000", 2.0, None), ("#ff0000", 2.0, None)])
 
-    def test_transform_is_an_error(self):
-        res = clean_svg('<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(1,1)">'
-                        '<path d="M0 0L5 5" stroke="#000"/></g></svg>')
-        self.assertTrue(any("transform" in e for e in res.errors))
-
     def test_non_role_color_and_wrong_canvas_warn(self):
         res = clean_svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
                         '<path d="M0 0L5 5" stroke="#abc" fill="none"/></svg>')

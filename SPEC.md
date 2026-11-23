@@ -63,7 +63,9 @@ Dropped: bitmap import.
 ## 12. Decisions made while building (v0.1 -> steps 1-7)
 - All icons are the user's own originals: no creator/license tracking, no bitmap import (section 9).
 - Removed/replaced icons go to `library/.trash/`, never deleted outright. Renames keep an alias.
-- Import rejects transforms and text (error); non-role colors and non-24x24 canvases only warn.
+- Import bakes transforms (layers, groups, objects) into the shapes and centers a smaller page on the 24x24
+  canvas at 1:1 (a larger page is scaled to fit), with a warning; only text/images and unreadable data are errors;
+  non-role colors only warn. (Earlier versions refused transforms; real Inkscape files always have them.)
 - Strokes render with round caps/joins only. Depth default 0.30 units, slider 0-0.6; it is
   subtle at 48px+ and fades below ~32px (sub-pixel offset). It is a medium/large-icon feature.
 - Themes = main, shade, light, box fill, preview page. Built-ins in code (read-only), user themes in

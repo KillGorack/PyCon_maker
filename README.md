@@ -37,9 +37,10 @@ settings are never removed by an uninstall. Run `icon-library --remove-menu` bef
 
 ## Drawing icons
 Draw on a 24 x 24 canvas (2-unit margin) in Inkscape or any editor and save as plain SVG. Use only paths, lines,
-circles, ellipses, rects and polygons. Ungroup and apply transforms before importing: the importer cleans editor
-data but refuses transforms and text. The line thickness you drew with is ignored; the thickness is set in the app
-so the whole set stays consistent.
+circles, ellipses, rects and polygons (no text or images: convert them to paths). Inkscape's layers, groups and
+transforms are fine: the importer cleans the editor data and applies the transforms itself. A page smaller than
+24 x 24 is centered on the canvas at its drawn size; a larger one is scaled down to fit. The line thickness you drew
+with is ignored; the thickness is set in the app so the whole set stays consistent.
 
 Colors are roles, not real colors:
 

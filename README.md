@@ -61,7 +61,8 @@ other color is kept exactly as drawn. Plain icons can get an automatic shade and
 - **Collections:** Ctrl+N makes one. Ctrl+click selects several icons; right-click adds them. A collection remembers
   the style you used with it.
 - **Export** (Ctrl+E): the open collection, the selection, or everything. SVG files, a sprite, PNGs, and
-  `icons-theme.css` with one `[data-theme="..."]` block per theme (themed mode), or fixed colors (baked mode). Re-exporting
+  `icons-theme.css` with one `[data-theme="..."]` block per theme (themed mode), or fixed colors (baked mode). Themed
+  files also carry plain colors, so an image viewer or editor that doesn't know CSS variables shows the default theme. Re-exporting
   to the same folder replaces only the files its own `manifest.json` lists.
 - Shortcuts: Ctrl+O import, Ctrl+N new collection, Ctrl+E export, Ctrl+F search, Ctrl+G safe-area guides, Ctrl+A select all
   shown, Ctrl+B collections sidebar.

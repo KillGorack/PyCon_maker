@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -71,11 +72,28 @@ class SvgOutput(Base):
         self.assertIn(f'stroke="{OCEAN.main}"', s)
         self.assertIn(f'fill="{OCEAN.box}"', s)
 
-    def test_themed_uses_variables_with_the_theme_as_fallback(self):
+    def test_themed_uses_variables_on_top_of_plain_colors(self):
         s = self.doc("plus", Style(box="square", padding=2), themed=True, theme=OCEAN)
         self.assertIn(f"var(--icon-main,{OCEAN.main})", s)
         self.assertIn(f"var(--icon-box,{OCEAN.box})", s)
-        self.assertNotIn(' stroke="', s)                                       # colors live in style="", not attributes
+        self.assertIn(f'stroke="{OCEAN.main}"', s)                              # plain colors are there too
+        self.assertIn(f'fill="{OCEAN.box}"', s)
+
+    def test_a_viewer_without_css_variables_sees_exactly_the_baked_file(self):
+        """Regression: themed files used to carry colors ONLY as var(), so Inkscape, librsvg and most image viewers
+        drew a black square (box) and no lines at all. Ignoring every style="" must leave the baked drawing."""
+        for icon in ("plus", "shield", "shield-tone", "gem-tone", "home"):
+            for style in (Style(), Style(box="rounded", padding=3, depth=0.3, stroke=1.5)):
+                themed = self.doc(icon, style, themed=True, theme=OCEAN)
+                baked = self.doc(icon, style, themed=False, theme=OCEAN)
+                self.assertEqual(re.sub(r' style="[^"]*"', "", themed), baked, icon)
+
+    def test_every_painted_element_has_a_plain_color(self):
+        s = self.doc("gem-tone", Style(box="circle", padding=2, depth=0.3), themed=True)
+        root = ET.fromstring(s)
+        for el in root.iter():
+            if el.tag.split("}")[-1] in ("rect", "path"):
+                self.assertTrue(el.get("fill") is not None, ET.tostring(el, encoding="unicode"))
 
     def test_current_color_option_changes_only_the_main_fallback(self):
         s = self.doc("shield-tone", Style(), themed=True, current_color=True)
@@ -230,6 +248,32 @@ class Safety(Base):
         from iconlib.library import LibraryError
         with self.assertRaises(LibraryError):
             self.run_export(ids=["nope"])
+
+
+@unittest.skipUnless(shutil.which("inkscape"), "Inkscape is not installed")
+class RealViewer(Base):
+    """A viewer that does not understand CSS variables must still show the icon (Inkscape is one)."""
+
+    def render(self, svg_path, out_png):
+        subprocess.run(["inkscape", str(svg_path), "--export-type=png", "--export-width=64", "--export-height=64",
+                        "-o", str(out_png)], capture_output=True, timeout=90, check=True)
+        with Image.open(out_png) as im:
+            return im.convert("RGBA")
+
+    def test_themed_export_is_visible_and_matches_the_baked_one_in_inkscape(self):
+        style = Style(box="rounded", padding=3, radius=0.25, stroke=2)
+        export(self.lib, ["star", "shield"], style, [OCEAN], ExportOptions(mode="themed", sprite=False), self.base / "t")
+        export(self.lib, ["star", "shield"], style, [OCEAN], ExportOptions(mode="baked", sprite=False), self.base / "b")
+        for icon in ("star", "shield"):
+            themed = self.render(self.base / "t" / "svg" / f"{icon}.svg", self.base / f"t-{icon}.png")
+            baked = self.render(self.base / "b" / "svg" / f"{icon}.svg", self.base / f"b-{icon}.png")
+            colors = {themed.getpixel((x, y))[:3] for x in range(0, 64, 2) for y in range(0, 64, 2)
+                      if themed.getpixel((x, y))[3] > 200}
+            self.assertIn(tuple(int(OCEAN.main[i:i + 2], 16) for i in (1, 3, 5)), {c for c in colors},
+                          f"{icon}: the lines are missing in a viewer without CSS variables")
+            self.assertNotIn((0, 0, 0), colors, f"{icon}: black = a color the viewer threw away")
+            diff = sum(abs(a - b) for a, b in zip(themed.tobytes(), baked.tobytes()))
+            self.assertLess(diff / (64 * 64 * 4), 1.0)
 
 
 if __name__ == "__main__":

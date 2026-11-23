@@ -7,7 +7,8 @@ Formats
   sprite  one icons-sprite.svg with a <symbol id="icon-<id>"> per icon (use with <use href=...>)
   png     baked colors, transparent: png/[<theme>/]<size>px/<id>.png
 Color modes
-  themed  CSS variables with the theme's colors as fallbacks, plus icons-theme.css (one block per
+  themed  CSS variables (style="...var(--icon-main,#fallback)") on top of plain color attributes, so viewers
+          that don't know CSS variables still show the default theme; plus icons-theme.css (one block per
           theme: [data-theme="<name>"]). Variables: --icon-main, --icon-shade, --icon-light, --icon-box.
   baked   fixed hex colors (for tools that don't understand CSS variables). With several themes
           the files go to svg/<theme>/...
@@ -77,24 +78,27 @@ def _n(x: float) -> str:
     return f"{x:.3f}".rstrip("0").rstrip(".") or "0"
 
 
-def _paint(color: str, theme: Theme, themed: bool, current_color: bool) -> str:
+def _paint(color: str, theme: Theme, themed: bool, current_color: bool) -> tuple[str, str | None]:
+    """(plain color, CSS-variable form or None). The plain color goes in an attribute that every viewer
+    understands; the variable form goes in style="" for browsers, which prefer it (themeable)."""
     role = ROLE_OF.get(color)
     if color == "none" or role is None:
-        return color                                    # off-role colors stay exactly as drawn
+        return color, None                              # off-role colors stay exactly as drawn
     base = getattr(theme, role)
     if not themed:
-        return base
-    return f"var({ROLE_VAR[role]},{'currentColor' if role == 'main' and current_color else base})"
+        return base, None
+    return base, f"var({ROLE_VAR[role]},{'currentColor' if role == 'main' and current_color else base})"
 
 
-def _shape(tag: str, attrs: dict, fill: str, stroke: str, width: str | None, themed: bool) -> str:
+def _shape(tag: str, attrs: dict, fill: tuple[str, str | None], stroke: tuple[str, str | None],
+           width: str | None) -> str:
+    """Plain attributes always; a style="" with var() on top only where a variable applies. Viewers that
+    don't know CSS variables (Inkscape, librsvg, many image viewers) ignore the style and use the plain color."""
     geo = "".join(f" {k}={quoteattr(v)}" for k, v in attrs.items() if k not in _STRIP)
-    stroked = stroke != "none"
-    if themed:                                          # style="..." so var() works everywhere
-        css = f"fill:{fill}" + (f";stroke:{stroke};stroke-width:{width}" if stroked else "")
-        return f'<{tag}{geo} style="{css}"/>'
-    paint = f' fill="{fill}"' + (f' stroke="{stroke}" stroke-width="{width}"' if stroked else "")
-    return f"<{tag}{geo}{paint}/>"
+    stroked = stroke[0] != "none"
+    paint = f' fill="{fill[0]}"' + (f' stroke="{stroke[0]}" stroke-width="{width}"' if stroked else "")
+    css = ";".join([f"fill:{fill[1]}"] * bool(fill[1]) + [f"stroke:{stroke[1]}"] * (stroked and bool(stroke[1])))
+    return f"<{tag}{geo}{paint}" + (f' style="{css}"' if css else "") + "/>"
 
 
 def _body(svg_text: str, style: Style, theme: Theme, themed: bool, allow_depth: bool,
@@ -108,14 +112,13 @@ def _body(svg_text: str, style: Style, theme: Theme, themed: bool, allow_depth: 
     shapes = [(el.tag.split("}")[-1], dict(el.attrib)) for el in root]
     parts: list[str] = []
 
-    def paint(c: str) -> str:
+    def paint(c: str) -> tuple[str, str | None]:
         return _paint(c, theme, themed, current_color)
 
     if g.boxed:
-        box = paint_box = f"var(--icon-box,{theme.box})" if themed else theme.box
         corner = f' rx="{_n(g.corner)}"' if g.corner else ""
-        fill = f'style="fill:{paint_box}"' if themed else f'fill="{paint_box}"'
-        parts.append(f'<rect width="{_n(g.side)}" height="{_n(g.side)}"{corner} {fill}/>')
+        css = f' style="fill:var(--icon-box,{theme.box})"' if themed else ""
+        parts.append(f'<rect width="{_n(g.side)}" height="{_n(g.side)}"{corner} fill="{theme.box}"{css}/>')
 
     def group(dx: float, dy: float, ghost: str | None) -> list[str]:
         out = []
@@ -123,11 +126,11 @@ def _body(svg_text: str, style: Style, theme: Theme, themed: bool, allow_depth: 
             fill, stroke = a.get("fill", "none"), a.get("stroke", "none")
             width = _n(style.stroke) if style.stroke is not None else a.get("stroke-width", "1")
             if ghost:
-                fill = paint(ghost) if fill != "none" else "none"
-                stroke = paint(ghost) if stroke != "none" else "none"
+                fill = paint(ghost) if fill != "none" else ("none", None)
+                stroke = paint(ghost) if stroke != "none" else ("none", None)
             else:
                 fill, stroke = paint(fill), paint(stroke)
-            out.append(_shape(tag, a, fill, stroke, width, themed))
+            out.append(_shape(tag, a, fill, stroke, width))
         x, y = g.pad + dx, g.pad + dy
         if x or y:
             return [f'<g transform="translate({_n(x)} {_n(y)})">', *("  " + o for o in out), "</g>"]
@@ -184,7 +187,8 @@ def _readme(ids: list[str], style: Style, themes: list[Theme], o: ExportOptions)
               "  Override any of them in your own CSS to recolor icons without re-exporting.", ""]
     if o.svg:
         L += ["SVG FILES  (svg/)",
-              "  Inline the file's <svg> in your HTML to theme it. As <img src> it shows the default theme only.", ""]
+              "  Inline the file's <svg> in your HTML to theme it. As <img src>, or in an image viewer or editor, it shows",
+              "  the default theme.", ""]
     if o.sprite:
         L += ["SPRITE  (icons-sprite.svg)",
               '  <svg width="24" height="24"><use href="icons-sprite.svg#icon-' + (ids[0] if ids else "name") + '"/></svg>',

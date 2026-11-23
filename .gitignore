@@ -1,0 +1,9 @@
+build/
+dist/
+__pycache__/
+*.egg-info/
+releases/
+.venv/
+.claude/
+# your own icon library: personal artwork + themes. Remove this line to keep it in git.
+library/

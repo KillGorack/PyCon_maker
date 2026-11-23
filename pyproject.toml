@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "icon-library"
+dynamic = ["version"]                      # from version.py, the single source
+description = "A master library of SVG icons, with per-project themed exports (SVG, sprite, PNG, CSS)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["customtkinter>=6.0,<7", "Pillow>=11"]
+# Tk itself is not on PyPI: Fedora needs  sudo dnf install python3-tkinter  once.
+
+[project.scripts]
+icon-library = "app:main"
+
+[tool.setuptools]
+# Flat modules, like problem-sheets. Fine inside pipx's private environment.
+py-modules = ["app", "gallery", "sidebar", "stylepanel", "dialogs", "exportdialog", "dave_theme", "version"]
+packages = ["iconlib", "icons"]            # iconlib = the UI-free core; dave_theme looks for icons/ next to itself
+
+[tool.setuptools.package-data]
+icons = ["*.png", "LICENSE"]               # icons/icon.png is the window and menu icon
+
+[tool.setuptools.dynamic]
+version = { attr = "version.VERSION" }
